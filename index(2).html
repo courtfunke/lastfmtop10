@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Top 10: Name That Artist's Hits</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Anton&family=DM+Sans:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1a1d3a; --panel:#242850; --slot:#2e3366; --line:#3d4380;
+  --ink:#f4f1ff; --muted:#a9acd6; --hot:#ff4f8b; --win:#ffd166; --miss:#ff7a7a;
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:"DM Sans",system-ui,sans-serif;min-height:100vh;
+  padding:max(20px,env(safe-area-inset-top)) 16px max(28px,env(safe-area-inset-bottom))}
+main{max-width:620px;margin:0 auto}
+h1{font-family:Anton,Impact,sans-serif;font-weight:400;font-size:clamp(2.4rem,9vw,3.6rem);line-height:1;margin:8px 0 6px;letter-spacing:.01em}
+h1 span{color:var(--hot)}
+p.sub{color:var(--muted);margin:0 0 22px;max-width:46ch;line-height:1.5}
+form{display:flex;gap:8px}
+input[type=text]{flex:1;min-width:0;font:inherit;font-size:1.05rem;padding:13px 14px;border-radius:10px;border:2px solid var(--line);background:var(--panel);color:var(--ink)}
+input[type=text]::placeholder{color:#7c80b5}
+input[type=text]:focus-visible,button:focus-visible{outline:3px solid var(--win);outline-offset:2px}
+button{font:inherit;font-weight:700;padding:13px 18px;border-radius:10px;border:0;background:var(--hot);color:#fff;cursor:pointer}
+button.ghost{background:transparent;border:2px solid var(--line);color:var(--ink)}
+button:disabled{opacity:.5;cursor:default}
+.hidden{display:none!important}
+#msg{min-height:1.4em;margin:12px 0 0;color:var(--muted)}
+#msg.bad{color:var(--miss)} #msg.good{color:var(--win)}
+.bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin:0 0 14px}
+.bar h2{font-family:Anton,Impact,sans-serif;font-weight:400;font-size:1.7rem;margin:0;line-height:1.1}
+.lives{font-size:1.2rem;letter-spacing:.15em;white-space:nowrap}
+.lives .gone{opacity:.25}
+ol{list-style:none;margin:0 0 16px;padding:0;display:grid;gap:8px}
+li{display:flex;align-items:center;gap:12px;background:var(--panel);border-radius:10px;padding:6px 14px 6px 8px;min-height:54px}
+li .n{font-family:Anton,Impact,sans-serif;font-size:1.9rem;width:2.1ch;text-align:right;color:var(--line)}
+li .t{flex:1;min-width:0;height:26px;border-radius:6px;background:var(--slot);display:flex;align-items:center;padding:0 10px;overflow:hidden}
+li .t b{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+li .p{font-size:.8rem;color:var(--muted);white-space:nowrap}
+li.found{background:#3a2d5e}
+li.found .n{color:var(--win)}
+li.found .t{background:transparent;padding:0;height:auto}
+li.found{animation:pop .35s ease-out}
+li.missed .t b{color:var(--miss)}
+li.missed .n{color:var(--miss);opacity:.6}
+@keyframes pop{0%{transform:scale(.97)}60%{transform:scale(1.015)}100%{transform:scale(1)}}
+.shake{animation:shake .3s}
+@keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+.wrong{color:var(--muted);font-size:.9rem;margin:14px 0 0;line-height:1.5}
+.actions{display:flex;gap:8px;margin-top:16px}
+.key{margin-top:16px;padding:14px;background:var(--panel);border-radius:10px;font-size:.92rem;line-height:1.5;color:var(--muted)}
+.key a{color:var(--win)}
+.key input{margin-top:8px;width:100%}
+@media (prefers-reduced-motion:reduce){*{animation:none!important}}
+</style>
+</head>
+<body>
+<main>
+  <h1>Top <span>10</span></h1>
+  <p class="sub">Pick an artist, then name their ten most played songs. Each right answer fills its spot on the countdown.</p>
+
+  <section id="setup">
+    <form id="artistForm">
+      <input type="text" id="artist" placeholder="Artist name" autocomplete="off" aria-label="Artist name" required>
+      <button id="startBtn">Start</button>
+    </form>
+    <div class="key hidden" id="keyBox">
+      This game needs a free Last.fm API key. <a href="https://www.last.fm/api/account/create" target="_blank" rel="noopener">Get one here</a>, then paste it below.
+      Better: put it in <code>LASTFM_API_KEY</code> near the top of the script so every player can use the game.
+      <input type="text" id="keyInput" placeholder="Paste Last.fm API key" autocomplete="off" aria-label="Last.fm API key">
+    </div>
+  </section>
+
+  <section id="game" class="hidden">
+    <div class="bar"><h2 id="artistName"></h2><div class="lives" id="lives" aria-label="Strikes left"></div></div>
+    <ol id="board"></ol>
+    <form id="guessForm">
+      <input type="text" id="guess" placeholder="Guess a song title" autocomplete="off" autocapitalize="off" aria-label="Song title guess">
+      <button id="guessBtn">Guess</button>
+    </form>
+    <p id="msg" role="status"></p>
+    <p class="wrong" id="wrong"></p>
+    <div class="actions">
+      <button class="ghost" id="giveUp">Give up</button>
+      <button class="ghost hidden" id="again">New artist</button>
+    </div>
+  </section>
+  <p id="setupMsg" class="sub hidden" role="status" style="margin-top:14px"></p>
+</main>
+
+<script>
+// Paste your free Last.fm API key here (https://www.last.fm/api/account/create).
+// Last.fm is used instead of Spotify because Spotify removed its artist top-tracks endpoint.
+const LASTFM_API_KEY = "";
+const MAX_STRIKES = 5;
+
+const $ = id => document.getElementById(id);
+const apiKey = () => LASTFM_API_KEY || localStorage.getItem("lfm_key") || "";
+let slots = [], strikes = 0, over = false, wrongGuesses = [];
+
+if (!apiKey()) $("keyBox").classList.remove("hidden");
+$("keyInput").addEventListener("input", e => { try { localStorage.setItem("lfm_key", e.target.value.trim()); } catch (_) {} });
+
+// ---- title matching ----
+const clean = s => s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/&/g, " and ");
+const keyFull = s => clean(s).replace(/[^a-z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+const keyShort = s => keyFull(clean(s).replace(/\(.*?\)|\[.*?\]/g, " ").replace(/\s+-\s+.*$/, ""));
+const keysOf = s => [...new Set([keyFull(s), keyShort(s)].filter(Boolean))];
+
+function dist(a, b) {
+  const m = a.length, n = b.length, d = Array.from({length: m + 1}, (_, i) => [i]);
+  for (let j = 1; j <= n; j++) d[0][j] = j;
+  for (let i = 1; i <= m; i++) for (let j = 1; j <= n; j++)
+    d[i][j] = Math.min(d[i-1][j] + 1, d[i][j-1] + 1, d[i-1][j-1] + (a[i-1] === b[j-1] ? 0 : 1));
+  return d[m][n];
+}
+function matches(guessKeys, slotKeys) {
+  return guessKeys.some(g => slotKeys.some(k => {
+    if (g === k) return true;
+    const tol = k.length <= 4 ? 0 : k.length <= 9 ? 1 : 2;
+    return tol && dist(g, k) <= tol;
+  }));
+}
+
+// ---- data ----
+async function loadTracks(name) {
+  const url = "https://ws.audioscrobbler.com/2.0/?method=artist.gettoptracks&autocorrect=1&limit=60&format=json"
+    + "&artist=" + encodeURIComponent(name) + "&api_key=" + encodeURIComponent(apiKey());
+  const res = await fetch(url);
+  const data = await res.json();
+  if (data.error) throw new Error(data.error === 6 ? "We couldn't find that artist. Check the spelling and try again."
+    : data.error === 10 ? "That API key isn't valid. Check it and try again." : data.message);
+  const list = data.toptracks && data.toptracks.track || [];
+  const seen = new Set(), out = [];
+  for (const t of list) {
+    const k = keyShort(t.name);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push({title: t.name, plays: Number(t.playcount) || 0, keys: keysOf(t.name), state: "hidden"});
+    if (out.length === 10) break;
+  }
+  if (out.length < 10) throw new Error("That artist doesn't have enough tracks for a top 10. Try another.");
+  return {artist: data.toptracks["@attr"].artist, tracks: out};
+}
+
+// ---- rendering ----
+function render() {
+  $("board").innerHTML = slots.map((s, i) => `
+    <li class="${s.state === "found" ? "found" : s.state === "missed" ? "missed" : ""}" data-i="${i}">
+      <span class="n">${i + 1}</span>
+      <span class="t">${s.state !== "hidden" ? `<b></b>` : ""}</span>
+      ${s.state !== "hidden" ? `<span class="p">${s.plays.toLocaleString()} plays</span>` : ""}
+    </li>`).join("");
+  slots.forEach((s, i) => { if (s.state !== "hidden") $("board").children[i].querySelector("b").textContent = s.title; });
+  $("lives").innerHTML = Array.from({length: MAX_STRIKES}, (_, i) =>
+    `<span class="${i < MAX_STRIKES - strikes ? "" : "gone"}">♥</span>`).join("");
+  $("wrong").textContent = wrongGuesses.length ? "Not in the top 10: " + wrongGuesses.join(", ") : "";
+}
+function say(text, cls = "") { $("msg").textContent = text; $("msg").className = cls; }
+
+function finish(won) {
+  over = true;
+  slots.forEach(s => { if (s.state === "hidden") s.state = "missed"; });
+  render();
+  say(won ? "That's all ten. Nice work!" : "Game over. The missing songs are shown in red.", won ? "good" : "bad");
+  $("guess").disabled = true; $("guessBtn").disabled = true;
+  $("giveUp").classList.add("hidden"); $("again").classList.remove("hidden");
+}
+
+// ---- events ----
+$("artistForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const name = $("artist").value.trim();
+  if (!name) return;
+  const note = $("setupMsg");
+  if (!apiKey()) { note.textContent = "Add a Last.fm API key first."; note.classList.remove("hidden"); return; }
+  $("startBtn").disabled = true; note.textContent = "Loading the charts…"; note.classList.remove("hidden");
+  try {
+    const {artist, tracks} = await loadTracks(name);
+    slots = tracks; strikes = 0; over = false; wrongGuesses = [];
+    $("artistName").textContent = artist;
+    $("setup").classList.add("hidden"); note.classList.add("hidden");
+    $("game").classList.remove("hidden");
+    $("guess").disabled = false; $("guessBtn").disabled = false; $("guess").value = "";
+    $("giveUp").classList.remove("hidden"); $("again").classList.add("hidden");
+    say("Type a song title and press Enter."); render(); $("guess").focus();
+  } catch (err) {
+    note.textContent = err.message || "Something went wrong. Try again."; 
+  } finally { $("startBtn").disabled = false; }
+});
+
+$("guessForm").addEventListener("submit", e => {
+  e.preventDefault();
+  if (over) return;
+  const raw = $("guess").value.trim();
+  if (!raw) return;
+  $("guess").value = "";
+  const g = keysOf(raw);
+  const hit = slots.findIndex(s => matches(g, s.keys));
+  if (hit >= 0) {
+    if (slots[hit].state === "found") { say("You already got that one.", ""); return; }
+    slots[hit].state = "found"; render();
+    say(`Yes! "${slots[hit].title}" is number ${hit + 1}.`, "good");
+    if (slots.every(s => s.state === "found")) finish(true);
+  } else {
+    strikes++; wrongGuesses.push(raw); render();
+    $("board").classList.remove("shake"); void $("board").offsetWidth; $("board").classList.add("shake");
+    say("Not in the top 10.", "bad");
+    if (strikes >= MAX_STRIKES) finish(false);
+  }
+});
+$("giveUp").addEventListener("click", () => finish(false));
+$("again").addEventListener("click", () => {
+  $("game").classList.add("hidden"); $("setup").classList.remove("hidden");
+  $("artist").value = ""; $("artist").focus();
+});
+</script>
+</body>
+</html>
